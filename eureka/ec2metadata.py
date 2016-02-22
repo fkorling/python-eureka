@@ -39,7 +39,7 @@ class EC2Metadata:
                 s.connect((addr, port))
                 s.close()
                 return True
-            except socket.error, e:
+            except socket.error:
                 time.sleep(1)
 
         return False

@@ -1,13 +1,11 @@
 import json
 import random
-from urllib2 import URLError
-from urlparse import urljoin
-from eureka import requests
+import requests
 from eureka import ec2metadata
 import logging
 import dns.resolver
-from eureka.requests import EurekaHTTPException
-
+from six.moves.urllib_parse import urljoin
+from six.moves.urllib_error import URLError
 
 logger = logging.getLogger('eureka.client')
 
@@ -35,7 +33,7 @@ class EurekaClient(object):
     def __init__(self, app_name, eureka_url=None, eureka_domain_name=None, host_name=None, data_center="Amazon",
                  vip_address=None, secure_vip_address=None, port=None, secure_port=None, use_dns=True, region=None,
                  prefer_same_zone=True, context="eureka/v2", eureka_port=None,
-                 health_check_url=None):
+                 health_check_url=None, status_page_url=None):
         super(EurekaClient, self).__init__()
         self.app_name = app_name
         self.eureka_url = eureka_url
@@ -62,6 +60,7 @@ class EurekaClient(object):
         # Relative URL to eureka
         self.context = context
         self.health_check_url = health_check_url
+        self.status_page_url = status_page_url
         self.eureka_urls = self.get_eureka_urls()
 
     def _get_txt_records_from_dns(self, domain):
@@ -121,6 +120,7 @@ class EurekaClient(object):
 
     def register(self, initial_status="STARTING"):
         data_center_info = {
+            '@class': 'com.netflix.appinfo.MyDataCenterInfo',
             'name': self.data_center
         }
         if self.data_center == "Amazon":
@@ -143,22 +143,24 @@ class EurekaClient(object):
                 'vipAddr': self.vip_address or '',
                 'secureVipAddr': self.secure_vip_address or '',
                 'status': initial_status,
-                'port': self.port,
-                'securePort': self.secure_port,
+                'port': {'$': self.port, '@enabled': self.port is not None},
+                'securePort': {'$': self.secure_port, '@enabled': self.secure_port is not None},
                 'dataCenterInfo': data_center_info,
-                'healthCheckUrl': self.health_check_url or ''
+                'healthCheckUrl': self.health_check_url,
+                'statusPageUrl' : self.status_page_url
             }
         }
         success = False
         last_e = None
         for eureka_url in self.eureka_urls:
             try:
+                print (instance_data)
                 r = requests.post(urljoin(eureka_url, "apps/%s" % self.app_name), json.dumps(instance_data),
                                   headers={'Content-Type': 'application/json'})
                 r.raise_for_status()
                 success = True
                 break
-            except (EurekaHTTPException, URLError) as e:
+            except (requests.exceptions.HTTPError, URLError) as e:
                 last_e = e
         if not success:
             raise EurekaRegistrationFailedException("Did not receive correct reply from any instances, last error: " + str(e))
@@ -179,7 +181,7 @@ class EurekaClient(object):
                 r.raise_for_status()
                 success = True
                 break
-            except (EurekaHTTPException, URLError) as e:
+            except (requests.exceptions.HTTPError, URLError) as e:
                 last_e = e
         if not success:
             raise EurekaUpdateFailedException("Did not receive correct reply from any instances, last error: " + str(e))
@@ -195,7 +197,7 @@ class EurekaClient(object):
                 r.raise_for_status()
                 success = True
                 break
-            except (EurekaHTTPException, URLError) as e:
+            except (requests.exceptions.HTTPError, URLError) as e:
                 pass
         if not success:
             raise EurekaHeartbeatFailedException("Did not receive correct reply from any instances")
@@ -207,7 +209,7 @@ class EurekaClient(object):
                 r = requests.get(urljoin(eureka_url, endpoint), headers={'accept': 'application/json'})
                 r.raise_for_status()
                 return json.loads(r.content)
-            except (EurekaHTTPException, URLError) as e:
+            except (requests.exceptions.HTTPError, URLError) as e:
                 pass
         raise EurekaGetFailedException("Failed to GET %s from all instances" % endpoint)
 
