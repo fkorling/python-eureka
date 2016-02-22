@@ -33,7 +33,7 @@ class EurekaClient(object):
     def __init__(self, app_name, eureka_url=None, eureka_domain_name=None, host_name=None, data_center="Amazon",
                  vip_address=None, secure_vip_address=None, port=None, secure_port=None, use_dns=True, region=None,
                  prefer_same_zone=True, context="eureka/v2", eureka_port=None,
-                 health_check_url=None, status_page_url=None):
+                 health_check_url=None, status_page_url=None, ip_address=None):
         super(EurekaClient, self).__init__()
         self.app_name = app_name
         self.eureka_url = eureka_url
@@ -45,6 +45,7 @@ class EurekaClient(object):
         # Virtual host name by which the clients identifies this service
         self.vip_address = vip_address
         self.secure_vip_address = secure_vip_address
+        self.ip_address = ip_address
         self.port = port
         self.secure_port = secure_port
         self.use_dns = use_dns
@@ -61,6 +62,7 @@ class EurekaClient(object):
         self.context = context
         self.health_check_url = health_check_url
         self.status_page_url = status_page_url
+
         self.eureka_urls = self.get_eureka_urls()
 
     def _get_txt_records_from_dns(self, domain):
@@ -143,6 +145,7 @@ class EurekaClient(object):
                 'vipAddr': self.vip_address or '',
                 'secureVipAddr': self.secure_vip_address or '',
                 'status': initial_status,
+                'ipAddr' : self.ip_address,
                 'port': {'$': self.port, '@enabled': self.port is not None},
                 'securePort': {'$': self.secure_port, '@enabled': self.secure_port is not None},
                 'dataCenterInfo': data_center_info,
