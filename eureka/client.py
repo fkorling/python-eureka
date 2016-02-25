@@ -35,7 +35,7 @@ class EurekaClient(object):
                  prefer_same_zone=True, context="eureka/v2", eureka_port=None,
                  health_check_url=None, status_page_url=None, ip_address=None):
         super(EurekaClient, self).__init__()
-        self.app_name = app_name
+        self.app_name = app_name.upper()
         self.eureka_url = eureka_url
         self.data_center = data_center
         if not host_name and data_center == "Amazon":
@@ -140,6 +140,7 @@ class EurekaClient(object):
             }
         instance_data = {
             'instance': {
+                'instanceId' : self.get_instance_id(),
                 'hostName': self.host_name,
                 'app': self.app_name,
                 'vipAddress': self.vip_address or '',
@@ -169,9 +170,7 @@ class EurekaClient(object):
             raise EurekaRegistrationFailedException("Did not receive correct reply from any instances, last error: " + str(e))
 
     def update_status(self, new_status):
-        instance_id = self.host_name
-        if self.data_center == "Amazon":
-            instance_id = ec2metadata.get('instance-id')
+        instance_id = self.get_instance_id()
         success = False
         last_e = None
         for eureka_url in self.eureka_urls:
@@ -189,10 +188,14 @@ class EurekaClient(object):
         if not success:
             raise EurekaUpdateFailedException("Did not receive correct reply from any instances, last error: " + str(e))
 
-    def heartbeat(self):
-        instance_id = self.host_name
+    def get_instance_id(self):
+        instance_id = "%s:%s:%d" % (self.host_name, self.app_name, self.port)
         if self.data_center == "Amazon":
             instance_id = ec2metadata.get('instance-id')
+        return instance_id
+
+    def heartbeat(self):
+        instance_id = self.get_instance_id()
         success = False
         for eureka_url in self.eureka_urls:
             try:
@@ -211,7 +214,7 @@ class EurekaClient(object):
             try:
                 r = requests.get(urljoin(eureka_url, endpoint), headers={'accept': 'application/json'})
                 r.raise_for_status()
-                return json.loads(r.content)
+                return r.json()
             except (requests.exceptions.HTTPError, URLError) as e:
                 pass
         raise EurekaGetFailedException("Failed to GET %s from all instances" % endpoint)
