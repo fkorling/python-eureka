@@ -142,8 +142,8 @@ class EurekaClient(object):
             'instance': {
                 'hostName': self.host_name,
                 'app': self.app_name,
-                'vipAddr': self.vip_address or '',
-                'secureVipAddr': self.secure_vip_address or '',
+                'vipAddress': self.vip_address or '',
+                'secureVipAddress': self.secure_vip_address or '',
                 'status': initial_status,
                 'ipAddr' : self.ip_address,
                 'port': {'$': self.port, '@enabled': self.port is not None},
