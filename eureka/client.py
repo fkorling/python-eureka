@@ -167,7 +167,7 @@ class EurekaClient(object):
             except (requests.exceptions.HTTPError, URLError) as e:
                 last_e = e
         if not success:
-            raise EurekaRegistrationFailedException("Did not receive correct reply from any instances, last error: " + str(e))
+            raise EurekaRegistrationFailedException("Did not receive correct reply from any instances, last error: " + str(last_e))
 
     def update_status(self, new_status):
         instance_id = self.get_instance_id()
